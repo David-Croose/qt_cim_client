@@ -109,15 +109,15 @@ void MainWindow::send_packet_0x09(quint8 order, quint32 userid, quint32 devid, c
     Generic_Data[6] = (len + 10) >> 8;
     Generic_Data[7] = (len + 10);
 
-    Generic_Data[8] = userid >> 24;
-    Generic_Data[9] = userid >> 16;
-    Generic_Data[10] = userid >> 8;
-    Generic_Data[11] = userid;
+    Generic_Data[8] = userid;
+    Generic_Data[9] = userid >> 8;
+    Generic_Data[10] = userid >> 16;
+    Generic_Data[11] = userid >> 24;
 
-    Generic_Data[12] = devid >> 24;
-    Generic_Data[13] = devid >> 16;
-    Generic_Data[14] = devid >> 8;
-    Generic_Data[15] = devid;
+    Generic_Data[12] = devid;
+    Generic_Data[13] = devid >> 8;
+    Generic_Data[14] = devid >> 16;
+    Generic_Data[15] = devid >> 24;
 
     strcpy((char *)&Generic_Data[16], fileid);
 
@@ -148,15 +148,15 @@ void MainWindow::send_packet_0x05(quint8 order, quint32 userid, quint32 devid, c
     Generic_Data[6] = (len) >> 8;
     Generic_Data[7] = (len);
 
-    Generic_Data[8] = userid >> 24;
-    Generic_Data[9] = userid >> 16;
-    Generic_Data[10] = userid >> 8;
-    Generic_Data[11] = userid;
+    Generic_Data[8] = userid;
+    Generic_Data[9] = userid >> 8;
+    Generic_Data[10] = userid >> 16;
+    Generic_Data[11] = userid >> 24;
 
-    Generic_Data[12] = devid >> 24;
-    Generic_Data[13] = devid >> 16;
-    Generic_Data[14] = devid >> 8;
-    Generic_Data[15] = devid;
+    Generic_Data[12] = devid;
+    Generic_Data[13] = devid >> 8;
+    Generic_Data[14] = devid >> 16;
+    Generic_Data[15] = devid >> 24;
 
     Generic_Data[16] = 11;
     Generic_Data[17] = 37;
@@ -194,7 +194,7 @@ void MainWindow::send_packet_ecgdata(quint32 seconds)
     quint32 totbytes = totdatabytes + 30 + 2;
     quint32 totpacket = totdatabytes / packetlen + 2;
     quint16 sum = 0;
-    quint8 sendBuf[30 * 2000 * 17 + 50] = {0};
+    quint8 sendBuf[100] = {0};
     quint8 ecgdata[65536] = {0};
     char tmpbuf[100] = {0};
 
@@ -218,21 +218,23 @@ void MainWindow::send_packet_ecgdata(quint32 seconds)
             sendBuf[6] = totbytes >> 8;
             sendBuf[7] = totbytes;
 
-            sendBuf[8] = userID >> 24;
-            sendBuf[9] = userID >> 16;
-            sendBuf[10] = userID >> 8;
-            sendBuf[11] = userID;
+            sendBuf[8] = userID;
+            sendBuf[9] = userID >> 8;
+            sendBuf[10] = userID >> 16;
+            sendBuf[11] = userID >> 24;
 
-            sendBuf[12] = devID >> 24;
-            sendBuf[13] = devID >> 16;
-            sendBuf[14] = devID >> 8;
-            sendBuf[15] = devID;
+            sendBuf[12] = devID;
+            sendBuf[13] = devID >> 8;
+            sendBuf[14] = devID >> 16;
+            sendBuf[15] = devID >> 24;
 
-            for(quint32 j = 2; j <= 15; j++)
+            strcpy((char *)&sendBuf[16], fileID);
+
+            for(quint32 j = 2; j < 30; j++)
             {
                 sum += sendBuf[j];
             }
-            mp_clientSocket->write((const char *)sendBuf, 16);
+            mp_clientSocket->write((const char *)sendBuf, 30);
 
             sprintf(tmpbuf, "sent ecgdata head. total packet=%d", totpacket - 2);
             ui->textBrowser->append(tmpbuf);
