@@ -35,6 +35,8 @@ private slots:
 
     void send_packet_ecgdata(quint32 seconds);
 
+    void on_pushButton_4_clicked();
+
 private:
     Ui::MainWindow *ui;
 };

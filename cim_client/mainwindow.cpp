@@ -4,6 +4,7 @@
 quint32 userID = 0x22180000;
 quint32 devID = 0;
 char fileID[14];
+bool sendEnableFlag;
 
 void sleep(quint32 msec)
 {
@@ -48,12 +49,14 @@ void MainWindow::on_pushButton_2_clicked()
 
     ui->progressBar->setValue(0);
     ui->textBrowser->append("sent <0x09>");
+    sendEnableFlag = true;
 }
 
 void MainWindow::on_pushButton_3_clicked()
 {
     ui->textBrowser->clear();
     ui->progressBar->setValue(0);
+    sendEnableFlag = false;
 }
 
 void MainWindow::ClientRecvData()
@@ -187,9 +190,10 @@ void MainWindow::send_packet_0x05(quint8 order, quint32 userid, quint32 devid, c
     mp_clientSocket->write((const char *)Generic_Data, len);
 }
 
+#if 1
 void MainWindow::send_packet_ecgdata(quint32 seconds)
 {
-    quint16 packetlen = 1360;
+    quint16 packetlen = 850; //1360;
     quint32 totdatabytes = seconds * 2000 * 17;
     quint32 totbytes = totdatabytes + 30 + 2;
     quint32 totpacket = totdatabytes / packetlen + 2;
@@ -206,6 +210,11 @@ void MainWindow::send_packet_ecgdata(quint32 seconds)
 
     for(quint32 i = 0; i < totpacket; i++)
     {
+        if(sendEnableFlag != true)
+        {
+            return;
+        }
+
         if(i == 0)
         {
             sendBuf[0] = 0xEB;
@@ -256,4 +265,90 @@ void MainWindow::send_packet_ecgdata(quint32 seconds)
         ui->progressBar->setValue((i + 1) * 100 / totpacket);
         sleep(20);
     }
+}
+
+#else
+
+void MainWindow::send_packet_ecgdata(quint32 seconds)
+{
+    static quint8 sendBuf[32 + 30 * 2000 * 17];
+    quint32 sendIndex = 0;
+    quint32 totbytes = 32 + seconds * 2000 * 17;
+    quint16 sum = 0;
+    quint32 onePacketLen = 850;
+    quint32 totPackets = totbytes / onePacketLen;
+    quint32 sparePackets = totbytes % onePacketLen;
+    quint32 tmp;
+    char tmpbuf[100];
+
+    if(seconds != 10 && seconds != 15 && seconds != 30)
+    {
+        ui->textBrowser->append("input err!");
+        return;
+    }
+
+    memset(sendBuf, 0, sizeof(sendBuf));
+
+    sendBuf[0] = 0xEB;
+    sendBuf[1] = 0x90;
+    sendBuf[2] = 0x08;
+    sendBuf[3] = 0x0B;
+
+    sendBuf[4] = totbytes >> 24;
+    sendBuf[5] = totbytes >> 16;
+    sendBuf[6] = totbytes >> 8;
+    sendBuf[7] = totbytes;
+
+    sendBuf[8] = userID;
+    sendBuf[9] = userID >> 8;
+    sendBuf[10] = userID >> 16;
+    sendBuf[11] = userID >> 24;
+
+    sendBuf[12] = devID;
+    sendBuf[13] = devID >> 8;
+    sendBuf[14] = devID >> 16;
+    sendBuf[15] = devID >> 24;
+
+    strcpy((char *)&sendBuf[16], fileID);
+
+    for(quint32 j = 2; j < 30; j++)
+    {
+        sum += sendBuf[j];
+    }
+
+    sendBuf[totbytes - 2] = sum >> 8;
+    sendBuf[totbytes - 1] = sum;
+
+    tmp = (sparePackets > 0) ? (totPackets + 1) : (totPackets);
+    sprintf(tmpbuf, "start sending. total packets=%d", tmp);
+    ui->textBrowser->append(tmpbuf);
+
+    for(quint32 i = 0; i < totPackets; i++)
+    {
+        if(sendEnableFlag != true)
+        {
+            return;
+        }
+
+        mp_clientSocket->write((const char *)&sendBuf[sendIndex], onePacketLen);
+        sprintf(tmpbuf, "sent mid(%d)", sendIndex / onePacketLen);
+        ui->textBrowser->append(tmpbuf);
+        ui->progressBar->setValue(i * 100 / totPackets);
+        sendIndex += onePacketLen;
+        sleep(5);
+    }
+    if(sparePackets > 0)
+    {
+        mp_clientSocket->write((const char *)&sendBuf[sendIndex], sparePackets);
+        sprintf(tmpbuf, "sent mid(%d)\ndone", sendIndex / onePacketLen);
+        ui->textBrowser->append(tmpbuf);
+    }
+
+    ui->progressBar->setValue(100);
+}
+#endif
+
+void MainWindow::on_pushButton_4_clicked()
+{
+    sendEnableFlag = false;
 }
